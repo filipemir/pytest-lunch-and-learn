@@ -1,0 +1,40 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    command: >
+      /bin/bash -c "
+      ./setup-db.sh &&
+      uvicorn app.main:app --host 0.0.0.0 --port 3339 --reload
+      "
+    ports:
+      - "3339:3339"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5439/db?sslmode=disable
+    volumes:
+      - ./app:/code/app
+      - ./tests:/code/tests
+      - ./data:/data
+      - ./data:/code/data
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:14.4
+    hostname: db
+    command: ["postgres", "-c", "log_statement=all"]
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    ports:
+      - "5439:5439"
+    environment:
+      - POSTGRES_NAME=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGPORT=5439
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
